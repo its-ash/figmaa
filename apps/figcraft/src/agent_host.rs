@@ -32,7 +32,7 @@ pub fn serve_mcp() -> i32 {
     let client = match bridge::Client::from_env() {
         Ok(client) => client,
         Err(why) => {
-            eprintln!("FigCraft: {why}");
+            eprintln!("Figmaa: {why}");
             return 2;
         }
     };
@@ -40,7 +40,7 @@ pub fn serve_mcp() -> i32 {
     match server.serve(std::io::stdin().lock(), std::io::stdout().lock()) {
         Ok(()) => 0,
         Err(e) => {
-            eprintln!("FigCraft: {e}");
+            eprintln!("Figmaa: {e}");
             1
         }
     }
@@ -68,7 +68,7 @@ impl Backend for UiBackend {
     }
 
     fn describe(&self) -> String {
-        "the FigCraft window".into()
+        "the Figmaa window".into()
     }
 }
 
@@ -183,7 +183,7 @@ fn run_claude(run: &AgentRun, resume: Option<String>, queue: Queue, ctx: CtxSlot
         let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).map_err(|e| format!("can't open a local socket: {e}"))?;
         let port = listener.local_addr().map_err(|e| e.to_string())?.port();
         let key = figcraft_collab_net::token::secret()?;
-        let exe = std::env::current_exe().map_err(|e| format!("can't find FigCraft's own program: {e}"))?;
+        let exe = std::env::current_exe().map_err(|e| format!("can't find Figmaa's own program: {e}"))?;
         Ok((listener, port, key, exe))
     })();
     let (listener, port, key, exe) = match started {

@@ -266,7 +266,7 @@ existing rev if the final commit changes unrelated behavior this task has not re
 FigCraft currently has no `craft-ui` dependency. Keep its capture adapter local in
 `crates/ui-egui/src/control.rs`, following the CL-2/CL-2F ownership, cancellation, byte-limit
 and viewport-wakeup contract. Eleven existing creative consumers adopt the shared helper;
-DeckCraft, FigCraft and ArtCraft Native use local adapters. Reuse the reviewed conformance cases
+DeckCraft and FigCraft use local adapters. Reuse the reviewed conformance cases
 and compare behavior with the shared prototype; do not add the entire crate solely for capture.
 
 ### 4.2 Feature decisions
@@ -447,7 +447,7 @@ Current `crates/ui-egui/src/control.rs`:
 are gone. The callback receives `Arc<ColorImage>` and does not request a repaint. Design:
 
 1. Implement the suite capture contract locally in `crates/ui-egui/src/control.rs`, using the
-   reviewed CL-2/CL-2F semantics and conformance cases. FigCraft, DeckCraft and ArtCraft Native
+   reviewed CL-2/CL-2F semantics and conformance cases. FigCraft and DeckCraft
    have local adapters; eleven existing craft-ui consumers share its helper. The local slot owns one result per admitted request and
    exposes a weak handle to the callback; the callback holds only a `Weak` reference, never a strong
    `Context`/app/queue, so a late capture cannot retain the app through shutdown.

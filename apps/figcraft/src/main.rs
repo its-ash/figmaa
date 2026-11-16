@@ -1,4 +1,4 @@
-//! FigCraft desktop app.
+//! Figmaa desktop app.
 //!
 //! Usage: `figcraft [--control <port>] [files…] [figcraft://join?…]` (an invite link joins that
 //! live session; the app registers itself as the opener of such links: `collab.registerLinks`).
@@ -136,11 +136,6 @@ impl eframe::App for App {
 }
 
 fn main() -> eframe::Result {
-    // Windows: the update helper is a copy of this program started with `--finish-update`.
-    #[cfg(windows)]
-    if let Some(result) = craft_update::self_update::finish(&figcraft_ui_egui::UPDATE_APP, &std::env::args_os().skip(1).collect::<Vec<_>>()) {
-        std::process::exit(i32::from(result.is_err()));
-    }
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("warn")).init();
     let args: Vec<String> = std::env::args().skip(1).collect();
     // Started by Claude Code for a run of the Agent tab: no window, only its tools.
@@ -149,7 +144,7 @@ fn main() -> eframe::Result {
     }
     if args.iter().any(|a| a == "--version" || a == "-V") {
         println!(
-            "FigCraft {}{}",
+            "Figmaa {}{}",
             env!("CARGO_PKG_VERSION"),
             option_env!("FIGCRAFT_BUILD_SHA").filter(|s| !s.is_empty()).map(|s| format!(" ({s})")).unwrap_or_default()
         );
@@ -158,7 +153,7 @@ fn main() -> eframe::Result {
     let args = args::parse(&args);
     if let Some(flag) = args.unknown.first() {
         eprintln!(
-            "FigCraft: unknown option {flag}\nUsage: figcraft [--control PORT] [--automation-read-root DIR]... [--automation-write-root DIR]... [FILE | figcraft://join?...]..."
+            "Figmaa: unknown option {flag}\nUsage: figcraft [--control PORT] [--automation-read-root DIR]... [--automation-write-root DIR]... [FILE | figcraft://join?...]..."
         );
         std::process::exit(2);
     }
@@ -169,7 +164,7 @@ fn main() -> eframe::Result {
         (true, _) => None,
         (false, Ok(r)) => Some(Arc::new(r)),
         (false, Err(e)) => {
-            eprintln!("FigCraft: {e}");
+            eprintln!("Figmaa: {e}");
             std::process::exit(2);
         }
     };
@@ -236,7 +231,6 @@ fn main() -> eframe::Result {
     // open (no frame then).
     figcraft_ui_egui::i18n::set(&session.prefs.language, figcraft_ui_egui::Services::system_language(&svc).as_deref());
     let mut fig = FigApp::new(session, Box::new(svc));
-    fig.set_startup_update_check(true);
     fig.automation_roots = roots;
     fig.ui.home = false;
     // Files named on the command line are the user's too: their missing fonts are listed.
@@ -255,18 +249,18 @@ fn main() -> eframe::Result {
     // The app id is the Wayland app_id and the X11 window class on Linux: the desktop entry's name
     // and StartupWMClass (FreeBSD's package matches the binary's name instead).
     let mut viewport = egui::ViewportBuilder::default()
-        .with_title("FigCraft")
+        .with_title("Figmaa")
         .with_app_id("ai.storyteller.figcraft")
         .with_inner_size([1440.0, 900.0])
         .with_min_inner_size([800.0, 500.0])
         .with_drag_and_drop(true);
     // Who draws the window frame is decided once, before the viewport is built, by the shared
     // craft-window crate (the rest of the Craft suite uses it too). On macOS the system frame is
-    // kept with FigCraft's inset traffic lights; on Windows it is the system frame; on Linux the
+    // kept with Figmaa's inset traffic lights; on Windows it is the system frame; on Linux the
     // decision follows the desktop: a Wayland compositor with server-side decorations (KDE, Sway,
     // Hyprland, COSMIC) or an X11 window manager keeps the native frame, while GNOME's Mutter —
     // which draws no server-side frame — leaves it to the app's own custom title bar. This replaces
-    // the old bespoke xdg-decoration probe that always drew FigCraft's custom title bar on KDE.
+    // the old bespoke xdg-decoration probe that always drew Figmaa's custom title bar on KDE.
     fig.ui.title_bar = desktop_title_bar();
     viewport = window_chrome(viewport, fig.ui.title_bar);
     if let Some(icon) = icon {
@@ -284,7 +278,7 @@ fn main() -> eframe::Result {
     #[cfg(target_os = "macos")]
     let apple_events = &apple_events;
     let result = eframe::run_native(
-        "FigCraft",
+        "Figmaa",
         options,
         Box::new(|cc| {
             if let Some(state) = &cc.wgpu_render_state {
@@ -297,7 +291,7 @@ fn main() -> eframe::Result {
             // asks just as it does for the close button. Failure keeps winit's menu: the app
             // runs, but ⌘Q ends it without asking.
             #[cfg(target_os = "macos")]
-            if let Err(e) = craft_menu::mac::install_app_menu(&cc.egui_ctx, "FigCraft") {
+            if let Err(e) = craft_menu::mac::install_app_menu(&cc.egui_ctx, "Figmaa") {
                 log::warn!("app menu: kept winit's Quit, which ends the app without asking: {e}");
             }
             Ok(Box::new(App {
@@ -324,7 +318,7 @@ fn opens_new_file(first_run: bool, start_on_home: bool, control: bool) -> bool {
     !first_run && (!start_on_home || control)
 }
 
-/// The title bar FigCraft starts with, decided by the shared craft-window crate so every Craft app
+/// The title bar Figmaa starts with, decided by the shared craft-window crate so every Craft app
 /// agrees on who draws the frame per desktop. The override variable is `FIGCRAFT_TITLEBAR`
 /// (`app` / `system`). macOS keeps its inset traffic lights unchanged (craft-window returns the
 /// desktop frame there); Windows keeps the system frame; on Linux the compositor/window manager
@@ -334,12 +328,12 @@ fn desktop_title_bar() -> figcraft_ui_egui::TitleBar {
     title_bar_for(choice.into_frame())
 }
 
-/// Map craft-window's [`craft_window::Frame`] onto FigCraft's own [`figcraft_ui_egui::TitleBar`].
+/// Map craft-window's [`craft_window::Frame`] onto Figmaa's own [`figcraft_ui_egui::TitleBar`].
 ///
-/// `Frame::App` means the app draws its own frame — FigCraft's custom title bar. `Frame::Desktop`
-/// means the desktop draws it, but FigCraft keeps each platform's existing look there:
+/// `Frame::App` means the app draws its own frame — Figmaa's custom title bar. `Frame::Desktop`
+/// means the desktop draws it, but Figmaa keeps each platform's existing look there:
 /// - macOS: the inset title bar with its traffic lights (`TitleBar::Inset`), unchanged.
-/// - Windows: FigCraft's own custom title bar (`TitleBar::Custom`), unchanged — Windows never used
+/// - Windows: Figmaa's own custom title bar (`TitleBar::Custom`), unchanged — Windows never used
 ///   the plain native frame, and craft-window returning `Desktop` on Windows must not change that.
 /// - Linux and the BSDs: the compositor's native frame (`TitleBar::Native`). This is the only
 ///   behaviour change: KDE and the other server-side-decoration compositors now keep their frame.
@@ -347,7 +341,7 @@ fn title_bar_for(frame: craft_window::Frame) -> figcraft_ui_egui::TitleBar {
     use figcraft_ui_egui::TitleBar;
     match frame {
         craft_window::Frame::Desktop if cfg!(target_os = "macos") => TitleBar::Inset,
-        // Windows kept FigCraft's own title bar before this change; keep it.
+        // Windows kept Figmaa's own title bar before this change; keep it.
         craft_window::Frame::Desktop if cfg!(target_os = "windows") => TitleBar::Custom,
         craft_window::Frame::Desktop => TitleBar::Native,
         // The app draws the frame (GNOME's Wayland session, or a `FIGCRAFT_TITLEBAR=app` override).
@@ -369,8 +363,8 @@ mod title_bar_tests {
     use figcraft_ui_egui::TitleBar;
 
     /// craft-window's app frame (GNOME's Wayland session, or a `FIGCRAFT_TITLEBAR=app` override)
-    /// becomes FigCraft's custom title bar on every platform, and `window_chrome` then drops the
-    /// decorations so FigCraft draws its own.
+    /// becomes Figmaa's custom title bar on every platform, and `window_chrome` then drops the
+    /// decorations so Figmaa draws its own.
     #[test]
     fn the_app_frame_maps_to_the_custom_title_bar() {
         let layout = craft_window::Layout::default();
@@ -381,7 +375,7 @@ mod title_bar_tests {
     }
 
     /// craft-window's desktop frame keeps each platform's existing look: macOS its inset traffic
-    /// lights, Windows FigCraft's own custom title bar (unchanged), and Linux/BSD the compositor's
+    /// lights, Windows Figmaa's own custom title bar (unchanged), and Linux/BSD the compositor's
     /// native frame. The Linux case is the only behaviour change: KDE and the other
     /// server-side-decoration compositors now keep their native frame.
     #[test]

@@ -1,6 +1,6 @@
 use super::{
     Done, FigApp, LeftTab, MobilePanel, NodeId, PANEL_DEFAULT, RightTab, Value, comments, dev_compare, dialogs, home, import_report, json, layers,
-    live, menus, missing_fonts, plugins_ui, present, tabs, updates_ui, versions,
+    live, menus, missing_fonts, plugins_ui, present, tabs, versions,
 };
 
 impl FigApp {
@@ -229,7 +229,7 @@ impl FigApp {
                     }
                 }
                 "preview.close" => self.ui.preview = None,
-                "open.help" => self.services.open_url("https://getartcraft.com/apps/figcraft"),
+                "open.help" => self.services.open_url("https://github.com/its-ash/figmaa"),
                 // A link in text activated while editing (`text.openLink`): the engine checked it
                 // is a web or mail link.
                 "open.url" => {
@@ -309,7 +309,6 @@ impl FigApp {
         let now = self.clock.now();
         self.autosave_tick(ctx, now);
         self.auto_save_tick(ctx, now);
-        updates_ui::tick(self, ctx);
         self.logic_ticked = true;
     }
 }

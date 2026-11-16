@@ -28,7 +28,7 @@ pub const RESOURCE_NOT_FOUND: i64 = -32002;
 const MAX_LINE: usize = 32 * 1024 * 1024;
 
 /// The `instructions` string sent on initialize.
-pub const INSTRUCTIONS: &str = "FigCraft is an interface design tool (Figma-class): pages hold frames, \
+pub const INSTRUCTIONS: &str = "Figmaa is an interface design tool (Figma-class): pages hold frames, \
 groups, shapes, text, components and instances, with auto layout, styles, variables and prototyping. \
 Coordinates are page units (1 unit = 1 px at 100% zoom), x right and y DOWN. create_node and set_properties \
 take x/y RELATIVE TO THE PARENT (the page when there is no parent, so page coordinates); inspect_document \
@@ -36,7 +36,9 @@ reports both x/y relative to the parent frame (groups don't count) and absoluteB
 positioned by the layout (set layout, gap, padding, mainAlign, crossAlign, sizingH/sizingV instead). \
 Every menu item, panel action and shortcut is a command: find ids and params with list_commands (use a filter) \
 and run them with run_command, or several as one undo step with batch. Commands act on `ids` when given, else \
-on the selection; new layers become the selection. Colours are \"#RRGGBB\" or \"#RRGGBBAA\". Verify your work: \
+on the selection; new layers become the selection. get_design_system reads the pages, styles, variables and \
+components in one call; find_nodes finds layers by name, type or text; create_tree builds a nested design (with \
+instances) in one call and one undo step. Colours are \"#RRGGBB\" or \"#RRGGBBAA\". Verify your work: \
 inspect_document / get_node return the layer tree as JSON (check sizes, fills, layout, overrides), and \
 screenshot returns a PNG of the page or of given layers to look at. undo/redo step through history. \
 Comments: comment.list returns threads (text, anchor node id, frame, page, x/y, replies); fix open ones, \
@@ -257,7 +259,7 @@ impl Server {
                         "resources": {"subscribe": false, "listChanged": false},
                         "prompts": {"listChanged": false},
                     },
-                    "serverInfo": {"name": "figcraft", "title": "FigCraft", "version": env!("CARGO_PKG_VERSION")},
+                    "serverInfo": {"name": "figcraft", "title": "Figmaa", "version": env!("CARGO_PKG_VERSION")},
                     "instructions": format!("{INSTRUCTIONS} Backend: {}.{}", self.backend.describe(), self.roots_note()),
                 }))
             }

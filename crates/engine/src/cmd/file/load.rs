@@ -114,7 +114,7 @@ fn load_any(
             expand_penpot_raw_svgs(&mut doc, &mut notes);
             // Penpot imports stay offline: referenced fonts must be installed locally.
             // The format reader stays platform-agnostic. Font availability is checked here,
-            // where FigCraft's system/embedded font registry is accessible. Never replace
+            // where Figmaa's system/embedded font registry is accessible. Never replace
             // the original family in the document: it can resolve after installation.
             figcraft_text::scan_system_fonts();
             let families = figcraft_text::family_names();
@@ -257,9 +257,9 @@ fn match_font_families(doc: &mut Document) {
 }
 
 /// Sketch draws text with the tracking a font's `trak` table gives at its size (Apple's text engine
-/// adds it; FigCraft's, like Figma's, doesn't): the imported text keeps it as letter spacing, so
+/// adds it; Figmaa's, like Figma's, doesn't): the imported text keeps it as letter spacing, so
 /// lines measure and break as they did there. A named style's optical size follows the text size
-/// there too (FigCraft keeps the instance's), so the imported text carries it as an `opsz` value.
+/// there too (Figmaa keeps the instance's), so the imported text carries it as an `opsz` value.
 fn platform_tracking(doc: &mut Document) {
     let mut cache: std::collections::BTreeMap<(String, String), Option<std::sync::Arc<figcraft_text::fontdb::Face>>> =
         std::collections::BTreeMap::new();
@@ -308,7 +308,7 @@ const TALL_LINE_FAMILIES: [&str; 11] =
 /// Sketch's natural line for a font of `ascent` and `descent` in `upem` units at `size` px: its
 /// height in px and how far down the text moves so its baseline sits where Sketch puts it. Sketch
 /// rounds the ascent and descent to whole pixels each and leaves the font's line gap out (a fifth
-/// more for [`TALL_LINE_FAMILIES`]), with the baseline above the rounded descent; FigCraft centres
+/// more for [`TALL_LINE_FAMILIES`]), with the baseline above the rounded descent; Figmaa centres
 /// the font's own ascent and descent in the line. `(0, 0)` without metrics.
 pub(crate) fn sketch_line(ascent: f64, descent: f64, upem: f64, family: &str, size: f64) -> (f64, f64) {
     let k = size / upem;
@@ -323,7 +323,7 @@ pub(crate) fn sketch_line(ascent: f64, descent: f64, upem: f64, family: &str, si
     (line, sketch_baseline - figcraft_baseline)
 }
 
-/// Text without a fixed line height takes the line Sketch drew it with (FigCraft's natural line,
+/// Text without a fixed line height takes the line Sketch drew it with (Figmaa's natural line,
 /// like Figma's, counts the font's line gap and centres the font in it; Sketch's doesn't), as a
 /// share of its size so it still follows the size, and moves to Sketch's baseline. Shared text
 /// styles take the line too.
@@ -399,7 +399,7 @@ pub(crate) fn load_fig(bytes: &[u8], name: &str) -> Option<Result<figcraft_forma
     }))
 }
 
-/// Turn Penpot raw SVG placeholders into editable FigCraft SVG content, using the
+/// Turn Penpot raw SVG placeholders into editable Figmaa SVG content, using the
 /// normal SVG importer. The parser (figcraft-format) only stores bounded XML so it
 /// does not need to depend on the SVG crate; the engine does this second pass.
 /// Any failure leaves the original placeholder and XML data intact for later use.
@@ -639,7 +639,7 @@ fn missing_penpot_font_warnings(doc: &Document, families: &[String]) -> Vec<Stri
         .join(", ");
     let extra = if count > 8 { format!(" and {} more", count - 8) } else { String::new() };
     vec![format!(
-        "Penpot: {count} font family/families are not installed or embedded: {names}{extra}. FigCraft uses fallback fonts for display, but preserves the original family names; install the licensed fonts and reopen the file to restore text metrics."
+        "Penpot: {count} font family/families are not installed or embedded: {names}{extra}. Figmaa uses fallback fonts for display, but preserves the original family names; install the licensed fonts and reopen the file to restore text metrics."
     )]
 }
 

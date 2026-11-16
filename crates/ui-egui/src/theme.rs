@@ -461,7 +461,7 @@ pub fn paint_wordmark(painter: &egui::Painter, left_center: egui::Pos2, size: f3
     let fig = painter.layout_no_wrap("Fig".into(), font.clone(), t.text);
     let fig_width = fig.size().x;
     painter.galley(egui::pos2(left_center.x, left_center.y - fig.size().y / 2.0), fig, t.text);
-    painter.text(egui::pos2(left_center.x + fig_width, left_center.y), egui::Align2::LEFT_CENTER, "Craft", font, t.accent_text);
+    painter.text(egui::pos2(left_center.x + fig_width, left_center.y), egui::Align2::LEFT_CENTER, "maa", font, t.accent_text);
 }
 
 /// Paint the owner's original chameleon icon from the existing app asset.

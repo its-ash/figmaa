@@ -6,7 +6,7 @@ use super::{
     Arc, Done, FigApp, NodeId, OsStr, Path, PathBuf, PendingAck, PendingDialog, Poll, Session, TaskContext, UiState, Value, Waker, a11y, branch_ui,
     canvas, cjk, comments, cursors, dev_compare, dialogs, frame_stats, home, home_recents, i18n, icons, import_report, json, layers, live, menus,
     missing_fonts, online, plugins_ui, present, render_worker, right, selection_spacing, shortcuts, style_picker, tabs, theme, toolbar, ui_scale,
-    updates_ui, variable_ui, versions, widgets, windows,
+    variable_ui, versions, widgets, windows,
 };
 
 mod clipboard;
@@ -58,7 +58,6 @@ impl FigApp {
             logic_ticked: false,
             ui_frame_stamp: None,
             ime: egui::ime_context::ImeContextTracker::new(),
-            updates_rt: updates_ui::Runtime::default(),
             #[cfg(test)]
             ime_observations: 0,
         }
@@ -259,7 +258,6 @@ impl FigApp {
             dialogs::keys(self, &ctx);
             present::show(self, ui);
             dialogs::show(self, &ctx);
-            updates_ui::show(self, &ctx);
             // What went wrong while presenting (a widget's plugin failing) shows over it.
             self.toast_ui(&ctx);
             windows::requests(self, &ctx);
@@ -274,7 +272,6 @@ impl FigApp {
             self.ui.shortcuts_panel = false;
             dialogs::keys(self, &ctx);
             dialogs::show(self, &ctx);
-            updates_ui::show(self, &ctx);
             self.toast_ui(&ctx);
             windows::requests(self, &ctx);
             shortcuts::clear_field_save_marker(&ctx);
@@ -418,7 +415,6 @@ impl FigApp {
         self.end_unwanted_text_preview(&ctx);
         self.end_pen_outside_design();
         dialogs::show(self, &ctx);
-        updates_ui::show(self, &ctx);
         // A scrub that changed speed (the pointer moved up or down) says so at the bottom.
         if let Some(notice) = ctx.data_mut(|d| d.remove_temp::<&'static str>(widgets::scrub_notice_id())) {
             self.toast(i18n::tr(notice));

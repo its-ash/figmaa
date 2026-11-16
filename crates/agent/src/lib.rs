@@ -34,6 +34,9 @@ pub const TOOLS: &[&str] = &[
     "screenshot",
     "undo",
     "redo",
+    "get_design_system",
+    "find_nodes",
+    "create_tree",
 ];
 
 /// The longest note beside a tool's name, in characters.
@@ -70,7 +73,7 @@ pub struct Model {
 /// The system prompt, sent before every message: where the model is, what it can do and how to work.
 pub fn system_prompt() -> String {
     format!(
-        "You are a design agent inside FigCraft, an interface design app like Figma. You work on the file the person \
+        "You are a design agent inside Figmaa, an interface design app like Figma. You work on the file the person \
 has open: frames, auto layout, components and variants, styles, variables and prototypes. They chat with you in the app's \
 Agent tab while they watch the canvas, and every change you make appears there at once and can be undone.
 
@@ -78,6 +81,10 @@ You change the file only through these tools:
 - list_commands: find any command's id and parameters (use a filter). Every menu action is a command.
 - run_command: run one command by id.
 - batch: run several commands as one undo step. Prefer it for related edits.
+- get_design_system: read the file's pages, styles, variables and components in one call.
+- find_nodes: find layers by name, type or text without changing the selection.
+- create_tree: build a whole nested design (a frame with its children, instances of components included) in one call \
+and one undo step. Prefer it to many create_node calls when you make more than one layer.
 - create_node: add a frame, shape, text or other layer.
 - set_properties: change a layer's fills, strokes, text, auto layout and other properties.
 - inspect_document: read the page's layer tree as JSON.
@@ -87,8 +94,8 @@ You change the file only through these tools:
 - undo and redo: step through the file's history.
 
 How to work:
-1. Before you design, read the file: inspect_document, then run_command with variable.list, style.list and component.list. \
-That is its design system. Use it: bind variables, apply styles and insert instances of components instead of raw values. \
+1. Before you design, read the file: inspect_document, then get_design_system (pages, plus what variable.list, \
+style.list and component.list return). That is its design system. Use it: bind variables, apply styles and insert instances of components instead of raw values. \
 If it has none, keep your own colours, type sizes and spacing consistent.
 2. Build real, editable designs: named layers and auto layout, not loose shapes.
 3. Check your work with inspect_document or screenshot before you say it is done.
@@ -127,6 +134,12 @@ pub fn tool_detail(name: &str, input: &Value) -> String {
         "set_properties" => {
             let keys = input.get("props").and_then(Value::as_object).into_iter().flat_map(|props| props.keys());
             keys.map(String::as_str).collect::<Vec<_>>().join(", ")
+        }
+        "find_nodes" => ["name", "text", "type"].into_iter().map(text).find(|t| !t.is_empty()).unwrap_or_default().to_string(),
+        "create_tree" => {
+            let root = input.get("tree").unwrap_or(&Value::Null);
+            let field = |key: &str| root.get(key).and_then(Value::as_str).unwrap_or_default();
+            [text("label"), field("name"), field("type")].into_iter().find(|t| !t.is_empty()).unwrap_or_default().to_string()
         }
         "get_node" => input.get("id").map_or_else(String::new, |id| id.as_str().map_or_else(|| id.to_string(), str::to_string)),
         _ => String::new(),
@@ -174,6 +187,9 @@ mod tests {
         assert_eq!(tool_detail("set_properties", &json!({"props": {"fill": "#000", "gap": 4}})), "fill, gap");
         assert_eq!(tool_detail("get_node", &json!({"id": 12})), "12");
         assert_eq!(tool_detail("undo", &json!({})), "");
+        assert_eq!(tool_detail("find_nodes", &json!({"type": "text", "name": "Title"})), "Title");
+        assert_eq!(tool_detail("create_tree", &json!({"tree": {"type": "frame", "name": "Card"}})), "Card");
+        assert_eq!(tool_detail("create_tree", &json!({"label": "Build list", "tree": {"type": "frame"}})), "Build list");
         assert_eq!(tool_detail("run_command", &Value::Null), "", "arguments that don't parse");
         assert_eq!(tool_detail("run_command", &json!({"command": "é".repeat(500)})).chars().count(), MAX_TOOL_DETAIL);
     }

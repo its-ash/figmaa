@@ -1,5 +1,5 @@
 //! The Claude Code CLI as a backend: one `claude -p` process per message, resuming the chat's session,
-//! with its own tools off and FigCraft's MCP server as its only tools. It uses the person's own Claude
+//! with its own tools off and Figmaa's MCP server as its only tools. It uses the person's own Claude
 //! Code login, and keeps the chat in Claude Code's own history as any session of it.
 
 use std::io::{BufRead, BufReader, Read, Write};
@@ -70,7 +70,7 @@ pub fn args(config: &Config) -> Vec<String> {
         // Only this app's instructions: no project's or person's settings, hooks or CLAUDE.md.
         "--setting-sources",
         "",
-        // Only FigCraft's server, and no shell, file or web tools.
+        // Only Figmaa's server, and no shell, file or web tools.
         "--strict-mcp-config",
         "--tools",
         "",
@@ -186,7 +186,7 @@ pub fn parse_line(line: &str) -> Vec<Event> {
             let mut events: Vec<Event> = v.get("session_id").and_then(Value::as_str).map(|id| Event::Session(id.to_string())).into_iter().collect();
             match server.and_then(|s| s.get("status")).and_then(Value::as_str) {
                 Some("connected") | Some("pending") | None => {}
-                Some(status) => events.push(Event::Error(format!("FigCraft's tools didn't connect to Claude Code ({})", clip(status, 80)))),
+                Some(status) => events.push(Event::Error(format!("Figmaa's tools didn't connect to Claude Code ({})", clip(status, 80)))),
             }
             events
         }

@@ -154,7 +154,7 @@ fn the_real_claude_cli_chats_and_edits_through_the_real_mcp_child() {
     assert!(names.contains("Made by Claude"), "{names}\n{events:?}");
     assert!(!std::path::Path::new("/tmp/figcraft-must-not-exist.figcraft").exists());
     assert_eq!(events.last(), Some(&Event::Done));
-    assert!(replies(&events).contains("FigCraft"), "the system prompt told it where it is: {events:?}");
+    assert!(replies(&events).contains("Figmaa"), "the system prompt told it where it is: {events:?}");
     assert!(events.iter().any(|e| matches!(e, Event::Usage { input, output } if *input > 0 && *output > 0)), "tokens are reported: {events:?}");
     let session = events.iter().find_map(|e| if let Event::Session(id) = e { Some(id.clone()) } else { None }).expect("a session");
 

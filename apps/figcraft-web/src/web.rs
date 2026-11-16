@@ -32,10 +32,10 @@ pub fn start() {
             log::error!("missing <canvas id=\"{CANVAS_ID}\">");
             return;
         };
-        // Host modes (`craft-web-host`): `?host=parent`, a same-origin page framing FigCraft, opens
+        // Host modes (`craft-web-host`): `?host=parent`, a same-origin page framing Figmaa, opens
         // documents in it and stores what it saves (`host`); unframed there is no parent, so that URL
         // on its own stays the normal app with downloads. `data-host="page"` on the canvas opts a
-        // page in instead: it runs FigCraft in its own document and talks over DOM `CustomEvent`s on
+        // page in instead: it runs Figmaa in its own document and talks over DOM `CustomEvent`s on
         // the canvas.
         let bridge = crate::host::Bridge::connect(&canvas);
         let app_bridge = bridge.clone();
@@ -115,7 +115,7 @@ pub fn start() {
         if let Some(el) = document.get_element_by_id(LOADING_ID) {
             match result {
                 Ok(()) => el.remove(),
-                Err(e) => el.set_inner_html(&format!("<p>FigCraft failed to start: {e:?}</p><p>A browser with WebGPU or WebGL2 is required.</p>")),
+                Err(e) => el.set_inner_html(&format!("<p>Figmaa failed to start: {e:?}</p><p>A browser with WebGPU or WebGL2 is required.</p>")),
             }
         }
     });

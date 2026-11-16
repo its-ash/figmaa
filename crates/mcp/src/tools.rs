@@ -112,6 +112,9 @@ pub const TOOL_NAMES: &[&str] = &[
     "type_text",
     "inspect_ui",
     "wait_for_changes",
+    "get_design_system",
+    "find_nodes",
+    "create_tree",
 ];
 
 /// The tools that take `document`: they act on the file it names instead of the one in front.
@@ -128,7 +131,22 @@ const DOCUMENT_TOOLS: &[&str] = &[
     "save_file",
     "undo",
     "redo",
+    "get_design_system",
+    "find_nodes",
+    "create_tree",
 ];
+
+/// The most layers one `create_tree` call builds.
+const MAX_TREE_LAYERS: usize = 500;
+/// The deepest a `create_tree` layer may be nested.
+const MAX_TREE_DEPTH: usize = 32;
+/// The keys a `create_tree` layer takes.
+const TREE_KEYS: &[&str] = &["type", "component", "name", "x", "y", "width", "height", "text", "path", "points", "closed", "props", "children"];
+/// What `get_design_system` can read, and the command each comes from.
+const DESIGN_SYSTEM_PARTS: &[(&str, &str)] =
+    &[("pages", "page.list"), ("styles", "style.list"), ("variables", "variable.list"), ("components", "component.list")];
+/// The most characters of a text layer `find_nodes` reports.
+const FOUND_TEXT_CHARS: usize = 200;
 
 /// All tools, in `tools/list` order.
 pub fn tool_definitions() -> Vec<Value> {
@@ -152,14 +170,14 @@ fn tools() -> Vec<Value> {
         tool(
             "list_commands",
             "List commands",
-            "List FigCraft commands: id, label, menu path, shortcut, whether it is undoable, and a parameter description. Every menu item, panel action and shortcut is a command; run one with run_command (or several as one undo step with batch). Most commands act on `ids` when given, else on the selection. Use `filter` to narrow (e.g. \"align\", \"layout\", \"variable\", \"style\", \"component\", \"proto\").",
+            "List Figmaa commands: id, label, menu path, shortcut, whether it is undoable, and a parameter description. Every menu item, panel action and shortcut is a command; run one with run_command (or several as one undo step with batch). Most commands act on `ids` when given, else on the selection. Use `filter` to narrow (e.g. \"align\", \"layout\", \"variable\", \"style\", \"component\", \"proto\").",
             obj(json!({"filter": string("Case-insensitive substring matched against id, label, menu path and parameter docs")}), &[]),
             true,
         ),
         tool(
             "run_command",
             "Run command",
-            "Execute one FigCraft command by id with JSON params (ids and params from list_commands). Mutating commands are one undo step each; a failing command leaves the document unchanged. Examples: {\"command\":\"align.left\",\"params\":{\"ids\":[3,4]}}, {\"command\":\"layout.add\",\"params\":{\"ids\":[2],\"direction\":\"vertical\"}}, {\"command\":\"style.create\",\"params\":{\"type\":\"paint\",\"name\":\"Brand/Primary\",\"from\":5}}. Returns the command's result (creation commands return {\"id\"}). Programmatic calls never open dialogs.",
+            "Execute one Figmaa command by id with JSON params (ids and params from list_commands). Mutating commands are one undo step each; a failing command leaves the document unchanged. Examples: {\"command\":\"align.left\",\"params\":{\"ids\":[3,4]}}, {\"command\":\"layout.add\",\"params\":{\"ids\":[2],\"direction\":\"vertical\"}}, {\"command\":\"style.create\",\"params\":{\"type\":\"paint\",\"name\":\"Brand/Primary\",\"from\":5}}. Returns the command's result (creation commands return {\"id\"}). Programmatic calls never open dialogs.",
             obj(
                 json!({"command": string("Command id, e.g. node.create, align.left, component.create, file.export"), "params": {"type": "object", "description": "Command parameters (see list_commands)"}}),
                 &["command"],
@@ -305,7 +323,7 @@ fn tools() -> Vec<Value> {
         tool(
             "open_file",
             "Open file",
-            "Open a .figcraft or .json document (FigCraft or REST API file JSON), a .fig or .sketch file (best effort, with `warnings` for what wasn't imported; .sketch from Sketch 48 or newer), an .svg (becomes vectors) or an image (becomes an image layer) as the active document. Returns the new document's summary.",
+            "Open a .figcraft or .json document (Figmaa or REST API file JSON), a .fig or .sketch file (best effort, with `warnings` for what wasn't imported; .sketch from Sketch 48 or newer), an .svg (becomes vectors) or an image (becomes an image layer) as the active document. Returns the new document's summary.",
             obj(
                 json!({
                     "path": string("File path"),
@@ -375,7 +393,7 @@ fn tools() -> Vec<Value> {
         tool(
             "wait_for_changes",
             "Wait for changes",
-            "Wait for new comment events in the attached FigCraft app. Returns pending events immediately; otherwise waits up to `timeoutMs` (default 20000, max 25000). Call it again with the returned `cursor` to keep watching. Headless returns immediately (no other writer). Events carry a sequence number, kind, document and a small payload (for comments, the thread id).",
+            "Wait for new comment events in the attached Figmaa app. Returns pending events immediately; otherwise waits up to `timeoutMs` (default 20000, max 25000). Call it again with the returned `cursor` to keep watching. Headless returns immediately (no other writer). Events carry a sequence number, kind, document and a small payload (for comments, the thread id).",
             obj(
                 json!({
                     "after": int("Return events after this cursor (default 0)"),
@@ -386,6 +404,47 @@ fn tools() -> Vec<Value> {
                 &[],
             ),
             true,
+        ),
+        tool(
+            "get_design_system",
+            "Get design system",
+            "The file's design system in one call: its pages (page.list), local and library styles (style.list), variables with their collections and modes (variable.list) and components and component sets (component.list, with ids to pass to instance.create or create_tree's `component`). Read it before designing so new layers use the file's styles, variables and components instead of raw values. A part that can't be read holds {error} instead.",
+            obj(
+                json!({"include": {"type": "array", "items": {"type": "string", "enum": ["pages", "styles", "variables", "components"]}, "description": "The parts to read (default all four)"}}),
+                &[],
+            ),
+            true,
+        ),
+        tool(
+            "find_nodes",
+            "Find layers",
+            "Find layers without changing the selection: by `name` (case-insensitive substring), `type` (frame, text, rectangle, instance, component, componentSet, group, vector …) and/or `text` (case-insensitive substring of a text layer's characters). All given criteria must match; with none, every layer matches. Searches the current page, or every page with allPages. Returns {matches: [{id, name, type, page, pageName, path (the names of its ancestors), absoluteBounds, visible, characters?}], total, shown} in layer order, top to bottom of the tree.",
+            obj(
+                json!({
+                    "name": string("Case-insensitive substring of the layer name"),
+                    "type": string("Layer type, any case: frame, text, rectangle, ellipse, instance, component, componentSet, group, vector, section …"),
+                    "text": string("Case-insensitive substring of a text layer's characters (only text layers match)"),
+                    "allPages": boolean("Search every page, not only the current one"),
+                    "limit": int("Most matches to return (default 50, max 500); `total` counts them all"),
+                }),
+                &[],
+            ),
+            true,
+        ),
+        tool(
+            "create_tree",
+            "Create layer tree",
+            "Build a whole nested design in ONE call and ONE undo step: a layer with its children, their children and so on (up to 500 layers, 32 levels). Each layer is {type, name?, x?, y?, width?, height?, text?, path?, points?, closed?, props?, children?} with the same meaning as create_node (props takes any set_properties keys, e.g. layout, gap, padding, fill, cornerRadius, sizingH, fontSize), or {component: id, name?, x?, y?, width?, height?, props?} for an instance of a component or component set. Children go inside their parent, so give frames with children `props.layout` to lay them out. If any layer fails, nothing is created and the error names it. Returns {root, layers, tree: {id, name?, children?}}; the root becomes the selection unless select is false. Example: {\"tree\":{\"type\":\"frame\",\"name\":\"Card\",\"props\":{\"layout\":\"vertical\",\"padding\":16,\"gap\":8,\"fill\":\"#FFFFFF\",\"cornerRadius\":12},\"children\":[{\"type\":\"text\",\"name\":\"Title\",\"text\":\"Hello\",\"props\":{\"fontSize\":20}},{\"type\":\"rectangle\",\"name\":\"Divider\",\"height\":1,\"props\":{\"sizingH\":\"fill\",\"fill\":\"#E5E5E5\"}}]}}.",
+            obj(
+                json!({
+                    "tree": {"type": "object", "description": "The root layer, with `children` nested inside"},
+                    "parent": id_schema("Where the root goes: a frame, group or component id (default: the current page)"),
+                    "label": string("Undo history label (default \"Create layers\")"),
+                    "select": boolean("Select the root when done (default true)"),
+                }),
+                &["tree"],
+            ),
+            false,
         ),
     ]
 }
@@ -576,6 +635,9 @@ pub fn call_tool(b: &mut dyn Backend, name: &str, args: &Value) -> ToolResult {
         "type_text" => type_text(b, &a),
         "inspect_ui" => b.call("ui.inspect", json!({})).map(|v| ToolResult::json(&v)),
         "wait_for_changes" => wait_for_changes(b, &a),
+        "get_design_system" => design_system(b, &a),
+        "find_nodes" => find_nodes(b, &a),
+        "create_tree" => create_tree(b, &a),
         other => Err(format!("unknown tool `{other}` (tools/list has: {})", TOOL_NAMES.join(", "))),
     };
     r.unwrap_or_else(ToolResult::error)
@@ -1230,4 +1292,269 @@ fn type_text(b: &mut dyn Backend, a: &Map<String, Value>) -> Result<ToolResult, 
         }
         None => b.call("ui.type", json!({"text": text})).map(|v| ToolResult::json(&v)),
     }
+}
+
+// ---------- design system, search and layer trees ----------
+
+fn bool_arg(a: &Map<String, Value>, k: &str) -> Result<Option<bool>, String> {
+    match a.get(k) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Bool(x)) => Ok(Some(*x)),
+        Some(_) => Err(format!("`{k}` must be a boolean")),
+    }
+}
+
+fn design_system(b: &mut dyn Backend, a: &Map<String, Value>) -> Result<ToolResult, String> {
+    let known = || DESIGN_SYSTEM_PARTS.iter().map(|(part, _)| *part).collect::<Vec<_>>().join(", ");
+    let parts: Vec<(&str, &str)> = match a.get("include") {
+        None | Some(Value::Null) => DESIGN_SYSTEM_PARTS.to_vec(),
+        Some(Value::Array(list)) => {
+            let mut out: Vec<(&str, &str)> = Vec::new();
+            for v in list {
+                let name = v.as_str().unwrap_or_default();
+                let part = DESIGN_SYSTEM_PARTS.iter().find(|(p, _)| *p == name).ok_or_else(|| format!("`include` takes {}, not {v}", known()))?;
+                if !out.contains(part) {
+                    out.push(*part);
+                }
+            }
+            out
+        }
+        Some(_) => return Err(format!("`include` must be an array of {}", known())),
+    };
+    let mut out = Map::new();
+    for (part, command) in parts {
+        // One part that fails (an empty file, a refused library) leaves the others readable.
+        let value = exec(b, command, json!({})).unwrap_or_else(|e| json!({"error": e}));
+        out.insert(part.into(), value);
+    }
+    Ok(ToolResult::json(&Value::Object(out)))
+}
+
+/// A layer type as compared: letters and digits only, upper case (`componentSet` = `COMPONENT_SET`).
+fn type_key(t: &str) -> String {
+    t.chars().filter(|c| c.is_alphanumeric()).collect::<String>().to_uppercase()
+}
+
+/// What `find_nodes` looks for, and what it has found.
+struct Search {
+    name: Option<String>,
+    kind: Option<String>,
+    text: Option<String>,
+    limit: usize,
+    total: usize,
+    found: Vec<Value>,
+}
+
+impl Search {
+    fn matches(&self, node: &Value) -> bool {
+        let field = |k: &str| node.get(k).and_then(Value::as_str);
+        self.name.as_ref().is_none_or(|n| field("name").unwrap_or_default().to_lowercase().contains(n.as_str()))
+            && self.kind.as_ref().is_none_or(|k| type_key(field("type").unwrap_or_default()) == *k)
+            && self.text.as_ref().is_none_or(|t| field("characters").is_some_and(|c| c.to_lowercase().contains(t.as_str())))
+    }
+
+    /// `node` and the layers inside it, in tree order. `path` holds its ancestors' names. The
+    /// inspected tree is at most 64 levels deep, so the recursion is bounded by it.
+    fn walk(&mut self, node: &Value, path: &[String], page: &Value) {
+        if path.len() > 128 {
+            return;
+        }
+        if self.matches(node) {
+            self.total += 1;
+            if self.found.len() < self.limit {
+                let mut hit = json!({
+                    "id": node.get("id").cloned().unwrap_or(Value::Null),
+                    "name": node.get("name").cloned().unwrap_or(Value::Null),
+                    "type": node.get("type").cloned().unwrap_or(Value::Null),
+                    "page": page.get("id").cloned().unwrap_or(Value::Null),
+                    "pageName": page.get("name").cloned().unwrap_or(Value::Null),
+                    "path": path.join(" / "),
+                    "absoluteBounds": node.get("absoluteBounds").cloned().unwrap_or(Value::Null),
+                    "visible": node.get("visible").cloned().unwrap_or(Value::Bool(true)),
+                });
+                if let Some(c) = node.get("characters").and_then(Value::as_str) {
+                    let mut text: String = c.chars().take(FOUND_TEXT_CHARS).collect();
+                    if c.chars().nth(FOUND_TEXT_CHARS).is_some() {
+                        text.push('…');
+                    }
+                    hit["characters"] = json!(text);
+                }
+                self.found.push(hit);
+            }
+        }
+        let Some(children) = node.get("children").and_then(Value::as_array) else { return };
+        let mut inner = path.to_vec();
+        inner.push(node.get("name").and_then(Value::as_str).unwrap_or_default().to_string());
+        for child in children {
+            self.walk(child, &inner, page);
+        }
+    }
+}
+
+fn find_nodes(b: &mut dyn Backend, a: &Map<String, Value>) -> Result<ToolResult, String> {
+    let lower = |k: &str| s_arg(a, k).map(|s| s.map(str::to_lowercase).filter(|s| !s.is_empty()));
+    let mut search = Search {
+        name: lower("name")?,
+        kind: s_arg(a, "type")?.map(type_key).filter(|k| !k.is_empty()),
+        text: lower("text")?,
+        limit: n_arg(a, "limit")?.unwrap_or(50.0).clamp(1.0, 500.0) as usize,
+        total: 0,
+        found: Vec::new(),
+    };
+    let all = bool_arg(a, "allPages")?.unwrap_or(false);
+    let doc =
+        b.call("document.inspect", json!({"depth": 64, "allPages": all, "fields": ["name", "type", "characters", "absoluteBounds", "visible"]}))?;
+    for page in doc.get("pages").and_then(Value::as_array).into_iter().flatten() {
+        // A page that wasn't expanded (another page, without allPages) has no children here.
+        for child in page.get("children").and_then(Value::as_array).into_iter().flatten() {
+            search.walk(child, &[], page);
+        }
+    }
+    let shown = search.found.len();
+    let mut out = json!({"matches": search.found, "total": search.total, "shown": shown});
+    if search.total > shown {
+        out["hint"] = json!("more layers match than `limit`: narrow the search, or raise `limit` (max 500)");
+    }
+    if !all {
+        out["scope"] = json!("the current page; allPages: true searches every page");
+    }
+    Ok(ToolResult::json(&out))
+}
+
+/// One layer of a planned tree: the batch step that creates it, and its children.
+struct Planned {
+    step: usize,
+    name: Option<String>,
+    children: Vec<Planned>,
+}
+
+/// The batch a `create_tree` call runs, as it is built.
+#[derive(Default)]
+struct TreePlan {
+    steps: Vec<Value>,
+    layers: usize,
+}
+
+impl TreePlan {
+    /// Add the steps that create `spec` (inside `parent`, the page when `None`) and its children.
+    fn layer(&mut self, spec: &Value, parent: Option<Value>, depth: usize, at: &str) -> Result<Planned, String> {
+        let Some(o) = spec.as_object() else { return Err(format!("{at}: a layer must be an object")) };
+        if depth >= MAX_TREE_DEPTH {
+            return Err(format!("{at}: the tree is deeper than {MAX_TREE_DEPTH} levels"));
+        }
+        if self.layers >= MAX_TREE_LAYERS {
+            return Err(format!("the tree has more than {MAX_TREE_LAYERS} layers: build it in parts, passing `parent`"));
+        }
+        if let Some(k) = o.keys().find(|k| !TREE_KEYS.contains(&k.as_str())) {
+            return Err(format!("{at}: unknown key `{k}` (a layer takes {})", TREE_KEYS.join(", ")));
+        }
+        let given = |k: &str| o.get(k).filter(|v| !v.is_null());
+        let name = match given("name") {
+            None => None,
+            Some(Value::String(s)) => Some(s.clone()),
+            Some(_) => return Err(format!("{at}: `name` must be a string")),
+        };
+        let props = match given("props") {
+            None => Map::new(),
+            Some(Value::Object(p)) => p.clone(),
+            Some(_) => return Err(format!("{at}: `props` must be an object")),
+        };
+        let step = self.steps.len();
+        let me = format!("n{}", self.layers);
+        self.layers += 1;
+        match (given("type"), given("component")) {
+            (Some(_), Some(_)) => return Err(format!("{at}: give `type` for a new layer or `component` for an instance, not both")),
+            (None, None) => return Err(format!("{at}: `type` (or `component` for an instance) is required")),
+            (Some(t), None) => {
+                if !t.is_string() {
+                    return Err(format!("{at}: `type` must be a string"));
+                }
+                let mut params = Map::new();
+                for k in ["type", "x", "y", "width", "height", "name", "text", "path", "points", "closed"] {
+                    if let Some(v) = given(k) {
+                        params.insert(k.into(), v.clone());
+                    }
+                }
+                if !props.is_empty() {
+                    params.insert("props".into(), Value::Object(props));
+                }
+                if let Some(p) = &parent {
+                    params.insert("parent".into(), p.clone());
+                }
+                params.insert("select".into(), json!(false));
+                let mut params = Value::Object(params);
+                friendly_params(&mut params);
+                self.steps.push(json!({"command": "node.create", "as": me, "params": params}));
+            }
+            (None, Some(component)) => {
+                if let Some(k) = ["text", "path", "points", "closed"].into_iter().find(|k| given(k).is_some()) {
+                    return Err(format!("{at}: `{k}` is for a new layer, not an instance (set an instance's text through its component properties)"));
+                }
+                let mut params = json!({"component": component});
+                // instance.create places the instance beside its main unless it gets both x and y.
+                let (x, y) = (given("x"), given("y"));
+                if parent.is_some() || x.is_some() || y.is_some() {
+                    params["x"] = x.cloned().unwrap_or_else(|| json!(0));
+                    params["y"] = y.cloned().unwrap_or_else(|| json!(0));
+                }
+                if let Some(p) = &parent {
+                    params["parent"] = p.clone();
+                }
+                self.steps.push(json!({"command": "instance.create", "as": me, "params": params}));
+                let mut set = props;
+                for k in ["name", "width", "height"] {
+                    if let Some(v) = given(k) {
+                        set.insert(k.into(), v.clone());
+                    }
+                }
+                if !set.is_empty() {
+                    normalize_props(&mut set);
+                    self.steps.push(json!({"command": "node.set", "params": {"ids": [{"$ref": me}], "props": set}}));
+                }
+            }
+        }
+        let children = match given("children") {
+            None => &[][..],
+            Some(Value::Array(list)) => list.as_slice(),
+            Some(_) => return Err(format!("{at}: `children` must be an array of layers")),
+        };
+        let mut planned = Vec::with_capacity(children.len());
+        for (i, child) in children.iter().enumerate() {
+            planned.push(self.layer(child, Some(json!({"$ref": me})), depth + 1, &format!("{at}.children[{i}]"))?);
+        }
+        Ok(Planned { step, name, children: planned })
+    }
+}
+
+/// The ids the batch gave a planned tree, in its shape.
+fn built(p: &Planned, results: &[Value]) -> Value {
+    let mut out = json!({"id": results.get(p.step).and_then(|r| r.get("id")).cloned().unwrap_or(Value::Null)});
+    if let Some(name) = &p.name {
+        out["name"] = json!(name);
+    }
+    if !p.children.is_empty() {
+        out["children"] = Value::Array(p.children.iter().map(|c| built(c, results)).collect());
+    }
+    out
+}
+
+fn create_tree(b: &mut dyn Backend, a: &Map<String, Value>) -> Result<ToolResult, String> {
+    let tree = a.get("tree").filter(|t| t.is_object()).ok_or("`tree` must be a layer object: {type, name?, props?, children?: [...]}")?;
+    let parent = a.get("parent").filter(|p| !p.is_null()).cloned();
+    let label = s_arg(a, "label")?.unwrap_or("Create layers");
+    let select = bool_arg(a, "select")?.unwrap_or(true);
+    let mut plan = TreePlan::default();
+    let root = plan.layer(tree, parent, 0, "tree")?;
+    let results = exec(b, "command.batch", json!({"label": label, "commands": plan.steps}))?;
+    let results = results.as_array().map(Vec::as_slice).unwrap_or_default();
+    let tree = built(&root, results);
+    let root_id = tree.get("id").cloned().unwrap_or(Value::Null);
+    let mut out = json!({"root": root_id, "layers": plan.layers, "tree": tree});
+    if select && !root_id.is_null() {
+        // The layers are made either way; a selection that fails is only reported.
+        if let Err(e) = exec(b, "select.set", json!({"ids": [root_id]})) {
+            out["warnings"] = json!([format!("the layers were created, but the root couldn't be selected: {e}")]);
+        }
+    }
+    Ok(ToolResult::json(&out))
 }

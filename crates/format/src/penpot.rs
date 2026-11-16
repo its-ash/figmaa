@@ -1,7 +1,7 @@
 //! Native, offline importer for Penpot 2.x `.penpot` exports (ZIP / JSON).
 //!
 //! The archive contains `manifest.json`, one JSON per page and shape, and image blobs in
-//! `objects/`. Imported shapes are ordinary FigCraft nodes, not a flattened SVG.
+//! `objects/`. Imported shapes are ordinary Figmaa nodes, not a flattened SVG.
 //! Only the supported subset is mapped; unknown properties are not silently represented as
 //! fully editable. This module has no Python, network or UI dependency and works with WASM.
 
@@ -361,7 +361,7 @@ fn finish_masked_group(doc: &mut Document, group: NodeId, source: &Value, warnin
 }
 
 /// Read one exported `.penpot` archive without touching the filesystem or running a converter.
-/// Returns native, editable FigCraft nodes plus notes about unsupported features.
+/// Returns native, editable Figmaa nodes plus notes about unsupported features.
 pub fn import(bytes: &[u8]) -> Result<(Document, Vec<String>), FormatError> {
     if bytes.len() > MAX_ARCHIVE {
         return Err(corrupt("archive exceeds 512 MiB"));
@@ -436,7 +436,7 @@ pub fn import(bytes: &[u8]) -> Result<(Document, Vec<String>), FormatError> {
             .and_then(|kept| serde_json::to_string(&kept).ok())
             .filter(|encoded| encoded.len() <= 16_384);
         // Library swatches remain useful as native document colors even when a
-        // Penpot shared-style/variable reference has no FigCraft equivalent.
+        // Penpot shared-style/variable reference has no Figmaa equivalent.
         import_document_colors(&mut z, &base, &mut doc, &mut warnings, &mut inflate_budget);
         let library_font_refs = import_typography_styles(&mut z, &base, &mut doc, &mut warnings, &mut inflate_budget);
         if let Some(source) = import_token_variables(&mut z, &base, &mut doc, &mut active_modes, &mut warnings, &mut inflate_budget) {
@@ -620,7 +620,7 @@ pub fn import(bytes: &[u8]) -> Result<(Document, Vec<String>), FormatError> {
     }
     doc.current_page = doc.first_page();
     // Penpot's multidimensional themes and original token aliases cannot safely be
-    // flattened to a single FigCraft mode. Store the bounded original on the first
+    // flattened to a single Figmaa mode. Store the bounded original on the first
     // page, which survives saving as .figcraft; never claim live shape bindings.
     if let Some(page) = doc.first_page()
         && let Some(node) = doc.node_mut(page)
@@ -646,7 +646,7 @@ pub fn import(bytes: &[u8]) -> Result<(Document, Vec<String>), FormatError> {
     if !structural_issues.is_empty() {
         warn(
             &mut warnings,
-            format!("FigCraft document has {} remaining structural issue(s) after Penpot import; review before editing", structural_issues.len()),
+            format!("Figmaa document has {} remaining structural issue(s) after Penpot import; review before editing", structural_issues.len()),
         );
     }
     report_unsupported_layout(&doc, &mut warnings);
@@ -737,11 +737,11 @@ fn keep_component_sources(doc: &mut Document, file_id: &str, sources: &BTreeMap<
     }
 }
 
-/// Turn the imported Penpot prototype links into working FigCraft interactions and flows.
+/// Turn the imported Penpot prototype links into working Figmaa interactions and flows.
 ///
 /// Every shape keeps its Penpot interactions in its metadata, and every page its Penpot
 /// flows. Now that the whole document is in, the Penpot shape ids they name can be
-/// resolved to FigCraft node ids.
+/// resolved to Figmaa node ids.
 fn import_prototype_links(doc: &mut Document, warnings: &mut Vec<String>) {
     let by_penpot_id: BTreeMap<String, NodeId> = doc.nodes().filter_map(|n| Some((n.plugin_data.get("penpot.id")?.clone(), n.id))).collect();
     prototype::resolve_destinations(doc, &by_penpot_id, warnings);
@@ -764,7 +764,7 @@ fn import_prototype_links(doc: &mut Document, warnings: &mut Vec<String>) {
 
 /// Collect readable, bounded layout compatibility warnings after importing every page.
 /// Per-layer source properties survive a save/open cycle in `plugin_data`, even where
-/// FigCraft's current layout engine does not expose the same feature.
+/// Figmaa's current layout engine does not expose the same feature.
 fn report_unsupported_layout(doc: &Document, warnings: &mut Vec<String>) {
     for (flag, explanation) in [("penpot.unsupported.alignSelf", "unrecognized per-element alignment")] {
         let mut count = 0usize;
@@ -789,10 +789,10 @@ fn report_unsupported_layout(doc: &Document, warnings: &mut Vec<String>) {
     }
 }
 
-/// Link fully mapped local Penpot component copies to FigCraft's native component graph.
+/// Link fully mapped local Penpot component copies to Figmaa's native component graph.
 ///
 /// A Penpot instance may have detached, reordered or injected layers. Syncing one of those as a
-/// FigCraft instance would *delete content*. We therefore link only exact shapeRef trees, and
+/// Figmaa instance would *delete content*. We therefore link only exact shapeRef trees, and
 /// leave every other copy independent with its original metadata intact.
 fn link_local_instances(doc: &mut Document, warnings: &mut Vec<String>) {
     let mut masters = BTreeMap::new();
@@ -890,7 +890,7 @@ fn link_local_instances(doc: &mut Document, warnings: &mut Vec<String>) {
 }
 
 /// Preflight an instance and its descendants. The order of children must match exactly because
-/// FigCraft's synchronization follows the master's order. Mapping by name alone is unsafe.
+/// Figmaa's synchronization follows the master's order. Mapping by name alone is unsafe.
 fn refers_to(doc: &Document, by_penpot_id: &BTreeMap<String, NodeId>, copy: &figcraft_doc::Node, source: &figcraft_doc::Node) -> bool {
     let Some(target) = source.plugin_data.get("penpot.id") else { return false };
     let mut reference = copy.plugin_data.get("penpot.shapeRef");
@@ -947,7 +947,7 @@ fn match_instance_tree(
         matches!((&copy.kind, &source.kind), (NodeKind::Frame, NodeKind::Component { .. }))
     } else {
         // Paths, booleans and component sets must be byte-for-byte equivalent: their geometry
-        // cannot be carried by FigCraft's generic instance override groups.
+        // cannot be carried by Figmaa's generic instance override groups.
         match (&copy.kind, &source.kind) {
             (NodeKind::Text(_), NodeKind::Text(_)) => true,
             (NodeKind::Frame, NodeKind::Instance { .. }) => true,
@@ -967,7 +967,7 @@ fn match_instance_tree(
     {
         return Err(at("swapped nested component instance"));
     }
-    // These fields have no reliable component override in FigCraft yet. Any difference must
+    // These fields have no reliable component override in Figmaa yet. Any difference must
     // keep the copy independent so a later component sync cannot silently erase it.
     let blocks = |differs: bool| differs && !is_root;
     if copy.clip != source.clip
@@ -1134,7 +1134,7 @@ fn grid_track(v: &Value) -> Option<GridTrack> {
     }
 }
 
-/// Map Penpot layout fields to the FigCraft frame layout engine. Unsupported directions / custom
+/// Map Penpot layout fields to the Figmaa frame layout engine. Unsupported directions / custom
 /// grid track types are intentionally left as absolute-positioned frames (not approximated).
 fn layout_props(v: &Value, warnings: &mut Vec<String>) -> Option<AutoLayout> {
     let mode = string(v, "layout").or_else(|| string(v, "layoutMode"))?;
@@ -1213,7 +1213,7 @@ fn layout_props(v: &Value, warnings: &mut Vec<String>) -> Option<AutoLayout> {
     Some(al)
 }
 
-/// Penpot grid-cell indices are one-based; FigCraft uses zero-based indices. The `shapes`
+/// Penpot grid-cell indices are one-based; Figmaa uses zero-based indices. The `shapes`
 /// memberships are the authoritative mapping (not a cell's UUID).
 fn grid_cells(parent: &Value) -> BTreeMap<&str, &Value> {
     let mut out = BTreeMap::new();
@@ -1267,8 +1267,8 @@ fn apply_child_layout(v: &Value, cell: Option<&Value>, node: &mut figcraft_doc::
     }
 }
 
-/// Bring Penpot library color swatches into FigCraft's editable document palette.
-/// Bind only the narrow subset of Penpot `appliedTokens` that FigCraft can represent
+/// Bring Penpot library color swatches into Figmaa's editable document palette.
+/// Bind only the narrow subset of Penpot `appliedTokens` that Figmaa can represent
 /// without changing the initial appearance: single solid fill/stroke colors and fixed
 /// layer width/height. Penpot stores token names without their set; if two sets contain
 /// the same name, choosing one would silently change the design when modes change.
@@ -1375,13 +1375,13 @@ fn bind_applied_tokens(doc: &mut Document, active_modes: &BTreeMap<String, Strin
                         token_number_field(node, property, value).ok_or(if NUMBER_TOKEN_PROPERTIES.contains(&property) {
                             "layer value differs from the token"
                         } else {
-                            "property has no FigCraft binding"
+                            "property has no Figmaa binding"
                         })?
                     }
                     ("fontFamily", VariableValue::String(family)) if matches!(&node.kind, NodeKind::Text(t) if t.style.font_family == family) => {
                         "fontFamily"
                     }
-                    _ => return Err("property has no FigCraft binding"),
+                    _ => return Err("property has no Figmaa binding"),
                 };
                 Ok((field, id.clone()))
             })();
@@ -1420,7 +1420,7 @@ fn bind_applied_tokens(doc: &mut Document, active_modes: &BTreeMap<String, Strin
         warn(
             warnings,
             format!(
-                "Linked {linked} Penpot token reference(s) to native FigCraft properties (colors, sizes, gaps, padding, radii, stroke widths, font sizes and families)"
+                "Linked {linked} Penpot token reference(s) to native Figmaa properties (colors, sizes, gaps, padding, radii, stroke widths, font sizes and families)"
             ),
         );
     }
@@ -1478,7 +1478,7 @@ fn import_document_colors(z: &mut ZipArchive<Cursor<&[u8]>>, base: &str, doc: &m
     }
 }
 
-/// Import named Penpot typography assets as native reusable FigCraft text styles.
+/// Import named Penpot typography assets as native reusable Figmaa text styles.
 /// Keep original values on the text nodes: attaching a shared style automatically
 /// would override local formatting unless the source explicitly links it.
 fn import_typography_styles(
@@ -1538,7 +1538,7 @@ fn import_typography_styles(
     custom_refs
 }
 
-/// DTCG typography and shadow objects are not scalar FigCraft variables. Instead, bring
+/// DTCG typography and shadow objects are not scalar Figmaa variables. Instead, bring
 /// simple literal compound values across as reusable native styles. In particular, do
 /// not evaluate token aliases here: active themes may map those to different values.
 fn compound_number(value: &Value) -> Option<f64> {
@@ -1701,7 +1701,7 @@ fn scalar_token(token: &Value) -> Option<(VariableType, VariableValue)> {
 }
 
 /// Native alias variables must have the same type as their target. Penpot's
-/// token type vocabulary is larger than FigCraft's four scalar types; unknown
+/// token type vocabulary is larger than Figmaa's four scalar types; unknown
 /// kinds remain source metadata rather than being converted incorrectly.
 fn token_color(text: &str) -> Option<Color> {
     let text = text.trim();
@@ -1735,7 +1735,7 @@ fn token_kind(token: &Value) -> Option<VariableType> {
 
 /// A Penpot alias is an entire value of the form `{path.to.token}`, not a
 /// string containing an interpolated expression. Do not interpret references
-/// outside the same token set as a live FigCraft variable without a mode map.
+/// outside the same token set as a live Figmaa variable without a mode map.
 fn token_alias(token: &Value) -> Option<&str> {
     let text = token.get("value").or_else(|| token.get("$value"))?.as_str()?;
     let path = text.strip_prefix('{')?.strip_suffix('}')?;
@@ -2462,7 +2462,7 @@ fn import_token_variables(
         );
     }
     if value.get("themes").is_some_and(|v| !v.is_null()) {
-        warn(warnings, "Penpot themes and active set combinations are preserved as source metadata, not editable FigCraft modes".into());
+        warn(warnings, "Penpot themes and active set combinations are preserved as source metadata, not editable Figmaa modes".into());
     }
     if count > 0 {
         warn(
@@ -2497,7 +2497,7 @@ fn report_design_system_limits(doc: &Document, warnings: &mut Vec<String>) {
 }
 
 /// File library components point at an existing page shape (`mainInstanceId`). Use this to turn
-/// that original into a native FigCraft component. Copies are still independent layers until the
+/// that original into a native Figmaa component. Copies are still independent layers until the
 /// Penpot override/source graph can be translated safely (see docs).
 fn component_masters(
     z: &mut ZipArchive<Cursor<&[u8]>>,
@@ -3206,7 +3206,7 @@ fn keep_ids(node: &mut figcraft_doc::Node, v: &Value, id: &str, base: &str, mast
     }
 }
 
-/// The Penpot source fields a layer keeps: the layout and other settings FigCraft can't hold, and
+/// The Penpot source fields a layer keeps: the layout and other settings Figmaa can't hold, and
 /// its component references.
 fn keep_source(node: &mut figcraft_doc::Node, v: &Value, typ: &str) {
     // Mark unsupported properties on their exact source nodes. Layout changes may
@@ -3392,7 +3392,7 @@ impl LayerImport<'_, '_> {
             keep_ids(node, v, id, self.base, self.masters.get(id));
             apply_child_layout(v, cell, node);
             // The prototype links are kept until every page is in the document, when the
-            // Penpot shape ids they name can be resolved to FigCraft node ids.
+            // Penpot shape ids they name can be resolved to Figmaa node ids.
             prototype::keep_interaction_source(node, v, self.warnings);
             keep_source(node, v, typ);
             node.constrain_proportions = v.get("proportionLock").and_then(Value::as_bool) == Some(true);
@@ -3655,7 +3655,7 @@ fn text_style(v: &Value, base: &TextStyle) -> TextStyle {
 }
 
 /// Penpot nests paragraphs, lines and character runs. Keep runs at Unicode character offsets;
-/// bytes would truncate multibyte characters when the user edits the resulting FigCraft text.
+/// bytes would truncate multibyte characters when the user edits the resulting Figmaa text.
 fn text_node(v: &Value) -> TextData {
     let mut fragments: Vec<(String, Value)> = Vec::new();
     fn own_style(v: &Value, inherited: &serde_json::Map<String, Value>) -> serde_json::Map<String, Value> {
@@ -3785,7 +3785,7 @@ fn text_node(v: &Value) -> TextData {
 }
 
 /// Approximate SVG/Penpot elliptical endpoint arcs with at most four editable cubic
-/// Bézier segments. These are *native* FigCraft vector handles, not an SVG image.
+/// Bézier segments. These are *native* Figmaa vector handles, not an SVG image.
 /// Uses the W3C SVG endpoint-to-centre conversion and keeps all intermediate values finite.
 fn arc_to_cubics(path: &mut BezPath, from: (f64, f64), to: (f64, f64), rx: f64, ry: f64, rotation_degrees: f64, large: bool, sweep: bool) -> bool {
     use std::f64::consts::{FRAC_PI_2, PI};
@@ -4196,7 +4196,7 @@ fn paints(
             if let Some(hash) = resolved {
                 images.insert(id.to_owned(), hash.clone());
                 // A Penpot image with keepAspectRatio=false stretches the full source
-                // rectangle into the layer. FigCraft's Crop mode with identity UV mapping
+                // rectangle into the layer. Figmaa's Crop mode with identity UV mapping
                 // is the native, editable representation (Fill would crop the edges).
                 let stretch = image.get("keepAspectRatio").and_then(Value::as_bool) == Some(false);
                 let mut p = Paint::image(hash, if stretch { ImageScaleMode::Crop } else { ImageScaleMode::Fill });
@@ -4233,7 +4233,7 @@ fn paints(
 }
 
 /// Penpot gradient handles are unit-box positions. The `width` factor defines the perpendicular
-/// radius of a radial gradient; FigCraft stores that as a perpendicular handle position.
+/// radius of a radial gradient; Figmaa stores that as a perpendicular handle position.
 fn gradient(v: &Value) -> Option<Gradient> {
     let kind = match string(v, "type")? {
         "linear" => GradientKind::Linear,
@@ -4795,7 +4795,7 @@ mod tests {
 
     #[test]
     fn crop_identity_is_the_native_equivalent_of_stretched_penpot_image() {
-        // FigCraft Crop maps unit coordinates into image UV. The identity transform
+        // Figmaa Crop maps unit coordinates into image UV. The identity transform
         // stretches the full image to the node regardless of aspect ratio.
         let mut p = Paint::image("source", ImageScaleMode::Crop);
         if let PaintKind::Image(ref mut img) = p.kind {

@@ -5,15 +5,6 @@
 //! below this crate knows about egui, so the frontend can be replaced.
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]
 
-/// FigCraft as craft-update knows it, with its 128 px icon and accent colour: the update
-/// prompt shows both, and an AppImage's menu entry gets the icon.
-#[cfg(not(target_arch = "wasm32"))]
-pub const UPDATE_APP: craft_update::app::App = craft_update::app::App {
-    icon_png: Some(include_bytes!("../../../assets/app-icon/hicolor/128x128/apps/ai.storyteller.figcraft.png")),
-    accent: Some([0x02, 0xda, 0x96]),
-    ..craft_update::suite::FIGCRAFT
-};
-
 pub mod a11y;
 pub mod bidi;
 pub mod canvas;
@@ -315,7 +306,6 @@ pub use dialogs::import_report;
 pub use dialogs::missing_fonts;
 pub use dialogs::plugins_ui;
 pub use dialogs::sampled_color;
-pub use dialogs::updates_ui;
 pub use dialogs::variables_panel;
 pub use home::home_recents;
 pub use home::online;
@@ -827,8 +817,6 @@ pub struct FigApp {
     ui_frame_stamp: Option<(egui::ViewportId, u64)>,
     /// IME owner/generation/change-cause state for the on-canvas text editor, per viewport.
     pub(crate) ime: egui::ime_context::ImeContextTracker,
-    /// The check for a newer release and its prompt (desktop; [`updates_ui`]).
-    pub(crate) updates_rt: updates_ui::Runtime,
     /// Test-only count of the one IME observation each viewport pass makes.
     #[cfg(test)]
     pub(crate) ime_observations: u32,

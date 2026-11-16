@@ -210,13 +210,6 @@ fn plural(code: &str, n: usize) -> Plural {
 // "other" wording. Czech supplies separate few forms; Russian and Polish supply few/many forms;
 // Bosnian takes Russian's one and few and reads "other" for the rest (CLDR has no "many" there).
 
-/// Whether count `n` takes the "one" form: 0 and 1 in French and Brazilian Portuguese, never in
-/// Japanese, Korean, Thai, Chinese and Vietnamese (no plural forms: always "other"), 1 elsewhere (CLDR's integer rules).
-#[cfg(test)]
-fn plural_one(lang: usize, n: usize) -> bool {
-    plural(LANGS.get(lang).map_or("en", |l| l.code), n) == Plural::One
-}
-
 /// Replace each `{name}` in `text` with its argument, in one pass (an argument's own braces stay).
 fn fill(text: &str, args: &[(&str, &dyn Display)]) -> String {
     let mut out = String::with_capacity(text.len() + 16);

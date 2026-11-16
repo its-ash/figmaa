@@ -389,6 +389,9 @@ a later step can use `{"$step": 0, "field": "ids/0"}` to target the first match.
 | `type_text {text, id?}` | Type into the text being edited, or replace the contents of text layer `id`. |
 | `inspect_ui {}` | Tool, view and status (and panels, timings and the app's `windows` when attached). |
 | `wait_for_changes {after?, timeoutMs?, topics?, limit?}` | Wait for new comment events in the attached app; returns pending events at once, else waits up to `timeoutMs` (default 20 s, max 25 s). Pass the returned `cursor` back to keep watching. Headless returns immediately. |
+| `get_design_system {include?}` | The file's pages, styles, variables and components in one call (`page.list`, `style.list`, `variable.list`, `component.list`); `include` picks some of `pages`, `styles`, `variables`, `components`. A part that can't be read holds `{error}`. |
+| `find_nodes {name?, type?, text?, allPages?, limit?}` | Layers that match every criterion given, without changing the selection: `name` and `text` are case-insensitive substrings (of the layer name, of a text layer's characters), `type` is any case (`componentSet` = `COMPONENT_SET`). The current page, or every page with `allPages`. Returns `{matches: [{id, name, type, page, pageName, path, absoluteBounds, visible, characters?}], total, shown}` in tree order; `limit` defaults to 50 (max 500). |
+| `create_tree {tree, parent?, label?, select?}` | A nested design in one call and one undo step (`command.batch`): `tree` is a layer `{type, name?, x?, y?, width?, height?, text?, path?, points?, closed?, props?, children?}` (as `create_node`) or an instance `{component, name?, x?, y?, width?, height?, props?}`, with `children` inside it, up to 500 layers and 32 levels. Unknown keys are an error; if one layer fails nothing is created. Returns `{root, layers, tree}` with every new id in the tree's shape; the root becomes the selection unless `select: false`. |
 
 ### Compact layer trees
 
@@ -2110,7 +2113,8 @@ Claude Code's input includes its prompt cache. **New chat** forgets the chat and
   Turn on **The model can see images** for a vision model: only then it gets `screenshot`.
 
 For both, a run needs your consent for that destination, and text in a file is treated as hostile
-(`crates/agent/src/guard.rs`): only `list_commands`, `run_command`, `batch`, `create_node`,
+(`crates/agent/src/guard.rs`): only `list_commands`, `run_command`, `batch`, `create_tree`, `create_node`,
+`get_design_system`, `find_nodes`,
 `set_properties`, `inspect_document`, `get_node`, `select`, `screenshot`, `undo` and `redo` are offered;
 the commands refused to plugins are refused here too, except undo, redo and batches of allowed commands;
 and each call is confined as with automation roots naming no folder, so it reads and writes no file and

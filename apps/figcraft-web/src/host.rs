@@ -1,7 +1,7 @@
-//! Host modes: a page that runs FigCraft (as an `<iframe>`, or in its own document) opens
+//! Host modes: a page that runs Figmaa (as an `<iframe>`, or in its own document) opens
 //! documents in it and stores what it saves instead of the browser downloading. The messages
 //! and the two transports are `craft-web-host`'s (storytold/craft-libs): the same contract as
-//! the other Craft apps' bridges. This module is FigCraft's part of it.
+//! the other Craft apps' bridges. This module is Figmaa's part of it.
 //!
 //! - `?host=parent` (an `<iframe>`, such as a Nextcloud app) talks to the same-origin parent over
 //!   `postMessage`; `data-host="page"` on the canvas (the page's own document) uses DOM
@@ -11,7 +11,7 @@
 //!   File › Open or dropped on the window would (the app's own open queue, with its "Opening as
 //!   a new file" card). A payload over the browser's own open limit
 //!   ([`figcraft_ui_egui::browser_can_read`]'s 512 MB) is refused before its bytes are copied,
-//!   and anything malformed is ignored. FigCraft reads whole files, so it says `file: false` in
+//!   and anything malformed is ignored. Figmaa reads whole files, so it says `file: false` in
 //!   `ready` and a host sends `bytes`.
 //! - `figcraft:save` (to the host): `{ name, saveAs, bytes }` for every file the app hands its
 //!   download service; in host mode nothing reaches the browser's downloads. `saveAs` says whether
@@ -55,7 +55,7 @@ pub struct Bridge {
 }
 
 impl Bridge {
-    /// The bridge for this page, or `None` when FigCraft isn't hosted: no `?host=parent` and no
+    /// The bridge for this page, or `None` when Figmaa isn't hosted: no `?host=parent` and no
     /// `data-host="page"` on the canvas, an unframed `?host=parent` page (it stays the normal app
     /// with downloads), or a parent on another origin.
     pub fn connect(canvas: &web_sys::HtmlCanvasElement) -> Option<Self> {
@@ -123,7 +123,7 @@ impl Bridge {
 fn deliver_open(opens: &OpenQueue, ctx: &egui::Context, host_file: &RefCell<Option<String>>, name: &str, data: &FileData) {
     let name = crate::hostmode::open_name(name);
     let FileData::Bytes(array) = data else {
-        log::warn!("host file {name} came as a File; FigCraft reads bytes only; not opened");
+        log::warn!("host file {name} came as a File; Figmaa reads bytes only; not opened");
         return;
     };
     if figcraft_ui_egui::browser_can_read(&name, data.size()).is_err() {

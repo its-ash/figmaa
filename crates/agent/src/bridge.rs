@@ -111,25 +111,25 @@ impl Client {
 
     /// From [`ENV`]'s `port:key`.
     pub fn from_env() -> Result<Self, String> {
-        let value = std::env::var(ENV).map_err(|_| format!("{ENV} is not set: only FigCraft's Agent tab starts this"))?;
+        let value = std::env::var(ENV).map_err(|_| format!("{ENV} is not set: only Figmaa's Agent tab starts this"))?;
         let (port, key) = value.split_once(':').ok_or_else(|| format!("{ENV} is not port:key"))?;
         let port = port.parse().map_err(|_| format!("{ENV} is not port:key"))?;
-        Self::connect(port, key).map_err(|e| format!("can't reach FigCraft: {e}"))
+        Self::connect(port, key).map_err(|e| format!("can't reach Figmaa: {e}"))
     }
 }
 
 impl Backend for Client {
     fn call(&mut self, method: &str, params: Value) -> Result<Value, String> {
-        writeln!(self.writer, "{}", json!({"method": method, "params": params})).map_err(|e| format!("the FigCraft run ended: {e}"))?;
+        writeln!(self.writer, "{}", json!({"method": method, "params": params})).map_err(|e| format!("the Figmaa run ended: {e}"))?;
         let mut line = Vec::new();
-        let read = (&mut self.reader).take(MAX_REPLY).read_until(b'\n', &mut line).map_err(|e| format!("the FigCraft run ended: {e}"))?;
+        let read = (&mut self.reader).take(MAX_REPLY).read_until(b'\n', &mut line).map_err(|e| format!("the Figmaa run ended: {e}"))?;
         if read == 0 {
-            return Err("the FigCraft run ended".into());
+            return Err("the Figmaa run ended".into());
         }
-        let reply: Value = serde_json::from_slice(&line).map_err(|e| format!("bad reply from FigCraft: {e}"))?;
+        let reply: Value = serde_json::from_slice(&line).map_err(|e| format!("bad reply from Figmaa: {e}"))?;
         match reply.get("ok").and_then(Value::as_bool) {
             Some(true) => Ok(reply.get("result").cloned().unwrap_or(Value::Null)),
-            _ => Err(reply.get("error").and_then(Value::as_str).unwrap_or("FigCraft refused the call").to_string()),
+            _ => Err(reply.get("error").and_then(Value::as_str).unwrap_or("Figmaa refused the call").to_string()),
         }
     }
 
@@ -138,7 +138,7 @@ impl Backend for Client {
     }
 
     fn describe(&self) -> String {
-        format!("FigCraft's Agent tab on port {}", self.port)
+        format!("Figmaa's Agent tab on port {}", self.port)
     }
 }
 
